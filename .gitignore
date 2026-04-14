@@ -1,0 +1,6 @@
+phase1/processed/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
