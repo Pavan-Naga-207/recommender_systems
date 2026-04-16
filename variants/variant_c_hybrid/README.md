@@ -50,6 +50,13 @@ The loader (`load_item_metadata`) keeps only category and encoded item id.
 
 ## Running
 
+**Python version:** LightFM currently installs reliably on **Python 3.10–3.12**. On **3.13**, `pip install lightfm` often fails to build. Create a lower-Python env first, for example:
+
+```bash
+conda create -n hybrid_rec python=3.11 -y
+conda activate hybrid_rec
+```
+
 ```bash
 # 1. Install deps (one-time)
 pip install -r requirements.txt
