@@ -4,3 +4,4 @@ phase1/processed/
 __pycache__/
 *.pyc
 .venv/
+.venv_hybrid/

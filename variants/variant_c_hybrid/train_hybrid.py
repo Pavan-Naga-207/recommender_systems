@@ -170,8 +170,9 @@ def precision_recall_ndcg_at_k(
 ):
     """Evaluate on the shared framework's three metrics.
 
-    Implements the exact same protocol described in Day 6:
-      - only evaluate users with >=1 test interaction
+    Implements the same protocol as phase1/run_baselines.py:
+      - only evaluate users with >=1 ground-truth interaction in this split
+      - require >=1 training interaction (same eligible-user filter as baselines)
       - remove items the user has seen in training (no trivial recommendations)
       - top-K ranking over all remaining items
     """
@@ -188,6 +189,8 @@ def precision_recall_ndcg_at_k(
     for u in range(n_users):
         true_items = set(test_csr[u].indices.tolist())
         if not true_items:
+            continue
+        if train_csr[u].nnz == 0:
             continue
 
         scores = model.predict(u, item_idx, item_features=item_features)
@@ -286,10 +289,10 @@ def main():
           f"NDCG@{args.k}={val_results['ndcg@k']:.4f}")
 
     print("Evaluating on test set...")
-    # For test, exclude BOTH train and val from the candidate pool
-    train_plus_val = (train_mat.tocsr() + val_mat.tocsr()).tocoo()
+    # Match phase1/run_baselines.py: mask only training interactions when
+    # ranking for test users (val interactions are not treated as "seen").
     test_results = precision_recall_ndcg_at_k(
-        model, test_mat, train_plus_val, item_features, k=args.k
+        model, test_mat, train_mat, item_features, k=args.k
     )
     print(f"  TEST P@{args.k}={test_results['precision@k']:.4f}  "
           f"R@{args.k}={test_results['recall@k']:.4f}  "

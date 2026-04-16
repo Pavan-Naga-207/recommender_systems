@@ -1,0 +1,23 @@
+{
+  "variant": "hybrid_lightfm",
+  "member": "Sarat",
+  "uses_metadata": true,
+  "hyperparams": {
+    "loss": "warp",
+    "components": 64,
+    "epochs": 20,
+    "k": 10
+  },
+  "val": {
+    "precision@k": 0.03537262156448204,
+    "recall@k": 0.05284230103698869,
+    "ndcg@k": 0.05259258503796573,
+    "n_users_evaluated": 7568
+  },
+  "test": {
+    "precision@k": 0.03638418079096045,
+    "recall@k": 0.05123631681254625,
+    "ndcg@k": 0.05266477329395565,
+    "n_users_evaluated": 7080
+  }
+}

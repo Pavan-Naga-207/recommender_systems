@@ -39,8 +39,9 @@ The loader (`load_item_metadata`) keeps only category and encoded item id.
 
 - Consumes the pipeline's `train.csv`, `val.csv`, `test.csv` unchanged.
 - Uses the same evaluation: **Precision@10, Recall@10, NDCG@10**.
-- Uses the same leave-out protocol (items seen in train are removed from
-  recommendation candidates; only users with ≥1 test interaction are scored).
+- Uses the same masking as `phase1/run_baselines.py` for test: items **seen in
+  train** are removed from candidates (validation interactions are not masked
+  for test ranking, matching the published baseline script).
 
 ## Files
 
@@ -57,8 +58,14 @@ conda create -n hybrid_rec python=3.11 -y
 conda activate hybrid_rec
 ```
 
+If `pip install lightfm` fails (common with recent `setuptools`), install the binary build:
+
 ```bash
-# 1. Install deps (one-time)
+conda install -c conda-forge lightfm numpy scipy pandas -y
+```
+
+```bash
+# 1. Install deps (one-time) — or use conda-forge line above for LightFM
 pip install -r requirements.txt
 
 # 2. Sanity-check the plumbing on synthetic data
