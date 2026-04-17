@@ -18,6 +18,7 @@ def combine_results_for_split(eval_split: str) -> None:
     result_paths = [
         RESULTS_DIR / f"ease_binary_3000_{eval_split}.csv",
         RESULTS_DIR / f"rp3beta_a0.9_b0.4_t400_{eval_split}.csv",
+        RESULTS_DIR / f"itemknn_bm25_k320_{eval_split}.csv",
     ]
 
     frames = [pd.read_csv(baseline_path)]
