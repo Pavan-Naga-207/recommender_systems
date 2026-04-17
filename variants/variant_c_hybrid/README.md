@@ -2,6 +2,10 @@
 
 **Team 11, CMPE 256 — Member: Sarat**
 
+## Section A
+
+**ItemKNN** is a collaborative filtering method that recommends items by looking at what similar items were liked by the same users. For each item, the model finds a neighborhood of “neighbor” items (often using cosine similarity on user interaction vectors, sometimes after weighting like BM25 or TF–IDF), then scores a candidate item for a user by aggregating those neighbors weighted by the user’s past interactions. It is simple, interpretable, and often strong on implicit-feedback data because it directly exploits item–item co-occurrence patterns without learning dense user embeddings.
+
 ## Approach
 
 This variant uses **item-based nearest neighbors**:
