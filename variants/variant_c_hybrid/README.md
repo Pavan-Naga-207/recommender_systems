@@ -1,107 +1,47 @@
-# Variant C — Hybrid Model with Item Metadata (LightFM)
+# Variant C — ItemKNN (BM25)
 
 **Team 11, CMPE 256 — Member: Sarat**
 
 ## Approach
 
-This variant uses [LightFM](https://making.lyst.com/lightfm/docs/home.html)
-(Kula, 2015 — [arXiv:1507.08439](https://arxiv.org/abs/1507.08439)) to build a
-hybrid recommender that combines collaborative filtering with item-side
-metadata.
+This variant uses **item-based nearest neighbors**:
 
-LightFM represents each item as the **sum of embeddings of its features**. We
-attach the English category (`category_en` in the public sample CSV) from
-`app_info_sample.csv` to each item, so apps
-in the same category share information. This helps the model generalize to
-less-popular / sparse items that pure collaborative filtering struggles with.
+1. Build a user-item interaction matrix from train split only.
+2. Convert it to item-user and apply **BM25 weighting**.
+3. Compute cosine neighbors for each item (best `K=320`).
+4. Score candidate items by summing neighbor similarities over a user's seen
+   items.
 
-## Why only `category`?
-
-The sample `app_info_sample.csv` also contains `installs`, `rating`, and
-`rating_count`. Per the dataset authors, these were collected **during the
-interaction period**, which means using them as features would leak future
-information into the training signal.
-
-We deliberately use **only** the category column (`category_en`, aliased
-internally to `category`), which is fixed at publish time and is not leaky.
-The loader (`load_item_metadata`) keeps only category and encoded item id.
-
-## How this differs from the two baselines
-
-| Signal used       | Popularity | User-CF | This variant |
-|-------------------|:----------:|:-------:|:------------:|
-| Global item popularity | ✓     |         |              |
-| User–user similarity   |       | ✓       |              |
-| Learned latent factors |       |         | ✓            |
-| Item category metadata |       |         | ✓            |
+The model is: **ItemKNN (BM25-weighted cosine)**.
 
 ## How this fits the shared framework
 
 - Consumes the pipeline's `train.csv`, `val.csv`, `test.csv` unchanged.
 - Uses the same evaluation: **Precision@10, Recall@10, NDCG@10**.
-- Uses the same masking as `phase1/run_baselines.py` for test: items **seen in
-  train** are removed from candidates (validation interactions are not masked
-  for test ranking, matching the published baseline script).
+- Uses the same masking as `phase1/run_baselines.py` for test: items seen in
+  **train** are removed from candidates.
 
 ## Files
 
-- `train_hybrid.py` — main training + evaluation script
-- `test_pipeline.py` — smoke tests for the non-LightFM parts (run this first)
+- `train_itemknn.py` — ItemKNN training + evaluation script
+- `results_itemknn_selected.json` — selected ItemKNN run
 - `requirements.txt` — dependencies
 
 ## Running
 
-**Python version:** LightFM currently installs reliably on **Python 3.10–3.12**. On **3.13**, `pip install lightfm` often fails to build. Create a lower-Python env first, for example:
-
 ```bash
-conda create -n hybrid_rec python=3.11 -y
-conda activate hybrid_rec
-```
-
-If `pip install lightfm` fails (common with recent `setuptools`), install the binary build:
-
-```bash
-conda install -c conda-forge lightfm numpy scipy pandas -y
-```
-
-```bash
-# 1. Install deps (one-time) — or use conda-forge line above for LightFM
 pip install -r requirements.txt
 
-# 2. Sanity-check the plumbing on synthetic data
-python test_pipeline.py
-
-# 3. Train + evaluate with category metadata
-python train_hybrid.py \
-    --data-dir path/to/shared_pipeline_outputs/ \
-    --metadata path/to/app_info_sample.csv \
-    --item-id-map path/to/item_mapping.csv
-
-# 4. Ablation: same model but without category features (pure MF)
-python train_hybrid.py \
-    --data-dir path/to/shared_pipeline_outputs/ \
-    --metadata path/to/app_info_sample.csv \
-    --item-id-map path/to/item_mapping.csv \
-    --no-features \
-    --output results_no_features.json
+python train_itemknn.py \
+  --data-dir path/to/shared_pipeline_outputs/ \
+  --output results_itemknn.json
 ```
 
-The ablation run is what shows whether the metadata is actually helping.
-Compare `results_hybrid.json` vs `results_no_features.json` on NDCG@10 — the
-delta is the clean, attributable contribution of the `category` feature.
+## Selected run
 
-## Hyperparameters to try
-
-| Flag              | Default | Try also          |
-|-------------------|---------|-------------------|
-| `--loss`          | warp    | bpr, logistic     |
-| `--components`    | 64      | 16, 32, 128       |
-| `--epochs`        | 20      | 10, 30, 50        |
-
-WARP loss is a strong default for implicit-feedback top-K ranking — it
-directly optimizes for ranking order, which is what our metrics reward.
-
-## Reference
-
-Kula, M. (2015). *Metadata Embeddings for User and Item Cold-start
-Recommendations*. CBRecSys 2015. arXiv:1507.08439.
+- Model: **ItemKNN (BM25)**
+- Neighbors: **320**
+- Test metrics:
+  - Precision@10: **0.042994**
+  - Recall@10: **0.063505**
+  - NDCG@10: **0.065180**

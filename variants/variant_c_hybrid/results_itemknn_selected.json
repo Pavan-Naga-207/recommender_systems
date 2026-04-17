@@ -1,13 +1,9 @@
 {
   "variant": "itemknn_bm25_selected",
-  "member": "Sarat",
+  "family": "bm25",
+  "neighbors": 320,
   "fit_data": "train_only",
   "eval_mask_test": "train_only_matches_run_baselines",
-  "hyperparams": {
-    "family": "bm25",
-    "neighbors": 320,
-    "k": 10
-  },
   "val": {
     "precision@k": 0.040169133192389,
     "recall@k": 0.06366344699147396,
