@@ -12,17 +12,24 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from phase1.common import build_train_matrix, evaluate_topk, load_split_data, save_results, top_k_from_scores
+from phase2.metadata_utils import build_dense_feature_variant, build_item_priors
 
 DATA_DIR = PROJECT_ROOT / "phase1" / "processed"
 OUTPUT_DIR = PROJECT_ROOT / "phase2" / "results"
 EVAL_SPLITS = ("val", "test")
-MODEL_NAME = "RP3beta-a0.9-b0.4-t400"
+MODEL_NAME = "RP3betaMetaLowRank-categoryContent"
 ALPHA = 0.9
 BETA = 0.4
 SIMILARITY_TOPK = 400
 TOP_K = 10
 BLOCK_SIZE = 256
 SCORE_BATCH_SIZE = 256
+FEATURE_VARIANT = "all_pos_row_norm"
+FEATURE_GAMMA = 3.0
+CONTENT_VARIANT = "category"
+CONTENT_ALPHA = 0.0001
+PRIOR_NAME = "rating"
+PRIOR_ALPHA = 0.001
 
 
 def chunked(values: list[int], batch_size: int):
@@ -63,11 +70,10 @@ def fit_rp3beta(
             row_scores = block_scores[local_row]
             row_scores[item_id] = 0.0
 
-            positive_mask = row_scores > 0.0
-            if not np.any(positive_mask):
+            candidate_idx = np.flatnonzero(row_scores > 0.0)
+            if candidate_idx.size == 0:
                 continue
 
-            candidate_idx = np.flatnonzero(positive_mask)
             if candidate_idx.size > similarity_topk:
                 top_idx = np.argpartition(row_scores[candidate_idx], -similarity_topk)[-similarity_topk:]
                 candidate_idx = candidate_idx[top_idx]
@@ -89,52 +95,59 @@ def fit_rp3beta(
     return similarity
 
 
-def run_rp3beta_for_split(eval_split: str) -> None:
-    split_data = load_split_data(DATA_DIR, eval_split)
-    train_matrix = build_train_matrix(
-        split_data.train_df,
-        split_data.num_users,
-        split_data.num_items,
+def main() -> None:
+    val_data = load_split_data(DATA_DIR, "val")
+    test_data = load_split_data(DATA_DIR, "test")
+    num_users = max(val_data.num_users, test_data.num_users)
+    num_items = max(val_data.num_items, test_data.num_items)
+    train_matrix = build_train_matrix(val_data.train_df, num_users, num_items).astype(np.float32)
+
+    feature_matrix = build_dense_feature_variant(num_items, FEATURE_VARIANT).astype(np.float32, copy=False)
+    content_feature_matrix = build_dense_feature_variant(num_items, CONTENT_VARIANT).astype(np.float32, copy=False)
+    user_content_profiles = train_matrix @ content_feature_matrix
+    augmented_train_matrix = sparse.vstack(
+        [train_matrix, FEATURE_GAMMA * sparse.csr_matrix(feature_matrix.T)],
+        format="csr",
+        dtype=np.float32,
     )
-    similarity = fit_rp3beta(
-        train_matrix=train_matrix,
+
+    rp3beta_similarity = fit_rp3beta(
+        train_matrix=augmented_train_matrix,
         alpha=ALPHA,
         beta=BETA,
         similarity_topk=SIMILARITY_TOPK,
         block_size=BLOCK_SIZE,
     )
+    priors = build_item_priors(num_items)
+    item_prior = priors[PRIOR_NAME]
 
-    rec_cache: dict[int, list[int]] = {}
-    for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
-        batch_scores = train_matrix[batch_users].dot(similarity).toarray()
-        for row_idx, user_id in enumerate(batch_users):
-            rec_cache[user_id] = top_k_from_scores(
-                batch_scores[row_idx],
-                split_data.train_user_items.get(user_id, set()),
+    for eval_split, split_data in (("val", val_data), ("test", test_data)):
+        rec_cache: dict[int, list[int]] = {}
+        for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
+            base_scores = train_matrix[batch_users].dot(rp3beta_similarity).toarray()
+            content_scores = user_content_profiles[batch_users] @ content_feature_matrix.T
+            combined_scores = base_scores + CONTENT_ALPHA * content_scores + PRIOR_ALPHA * item_prior
+            for row_idx, user_id in enumerate(batch_users):
+                rec_cache[user_id] = top_k_from_scores(
+                    combined_scores[row_idx],
+                    split_data.train_user_items.get(user_id, set()),
+                    TOP_K,
+                )
+
+        results = [
+            evaluate_topk(
+                lambda user_id, k: rec_cache[user_id][:k],
+                split_data.eligible_users,
+                split_data.eval_user_items,
                 TOP_K,
+                MODEL_NAME,
             )
-
-    results = [
-        evaluate_topk(
-            lambda user_id, k: rec_cache[user_id][:k],
-            split_data.eligible_users,
-            split_data.eval_user_items,
-            TOP_K,
-            MODEL_NAME,
-        )
-    ]
-
-    output_csv = OUTPUT_DIR / f"rp3beta_a0.9_b0.4_t400_{eval_split}.csv"
-    result_df = save_results(results, output_csv, TOP_K, eval_split)
-    print(result_df.to_string(index=False))
-
-
-def main() -> None:
-    for eval_split in EVAL_SPLITS:
-        print(f"\nRunning RP3beta for: {eval_split}")
-        run_rp3beta_for_split(eval_split)
+        ]
+        output_csv = OUTPUT_DIR / f"rp3beta_metadata_best_{eval_split}.csv"
+        result_df = save_results(results, output_csv, TOP_K, eval_split)
+        print(result_df.to_string(index=False))
+        print(f"\nSaved metadata-aware RP3beta results to: {output_csv}\n")
 
 
 if __name__ == "__main__":
     main()
-

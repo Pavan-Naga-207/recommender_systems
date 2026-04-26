@@ -69,7 +69,11 @@ def run_ease_for_split(eval_split: str) -> None:
     print(result_df.to_string(index=False))
 
 
-for eval_split in EVAL_SPLITS:
-    print(f"\nRunning EASE for: {eval_split}")
-    run_ease_for_split(eval_split)
+def main() -> None:
+    for eval_split in EVAL_SPLITS:
+        print(f"\nRunning EASE for: {eval_split}")
+        run_ease_for_split(eval_split)
 
+
+if __name__ == "__main__":
+    main()
