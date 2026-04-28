@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+RP3beta-a0.9-b0.4-t400,0.04312146892655368,0.0649969185715112,0.0850321461474626,7080,test

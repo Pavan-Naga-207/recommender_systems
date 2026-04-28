@@ -44,6 +44,7 @@ def fit_rp3beta(
     similarity_topk: int,
     block_size: int,
 ) -> sparse.csr_matrix:
+    # Same RP3beta walk logic, but this script can pass in an augmented matrix.
     p_ui = normalize(train_matrix, norm="l1", axis=1, copy=True)
     p_iu = normalize(train_matrix.T.tocsr(), norm="l1", axis=1, copy=True)
 
@@ -102,9 +103,12 @@ def main() -> None:
     num_items = max(val_data.num_items, test_data.num_items)
     train_matrix = build_train_matrix(val_data.train_df, num_users, num_items).astype(np.float32)
 
+    # Dense features come from app metadata aligned to the encoded item space.
     feature_matrix = build_dense_feature_variant(num_items, FEATURE_VARIANT).astype(np.float32, copy=False)
     content_feature_matrix = build_dense_feature_variant(num_items, CONTENT_VARIANT).astype(np.float32, copy=False)
     user_content_profiles = train_matrix @ content_feature_matrix
+
+    # Treat item metadata features like extra pseudo-users before fitting RP3beta.
     augmented_train_matrix = sparse.vstack(
         [train_matrix, FEATURE_GAMMA * sparse.csr_matrix(feature_matrix.T)],
         format="csr",
@@ -126,6 +130,7 @@ def main() -> None:
         for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
             base_scores = train_matrix[batch_users].dot(rp3beta_similarity).toarray()
             content_scores = user_content_profiles[batch_users] @ content_feature_matrix.T
+            # Final score keeps graph signal dominant and adds small content/prior nudges.
             combined_scores = base_scores + CONTENT_ALPHA * content_scores + PRIOR_ALPHA * item_prior
             for row_idx, user_id in enumerate(batch_users):
                 rec_cache[user_id] = top_k_from_scores(

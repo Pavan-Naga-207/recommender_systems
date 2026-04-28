@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+EASEMeta-ratingPrior-a0.03,0.04492937853107345,0.06613255193646292,0.0866942807682021,7080,test

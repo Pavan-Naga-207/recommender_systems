@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+RP3betaMetaLowRank-categoryContent,0.04007663847780127,0.06548230982583457,0.08234992216024077,7568,val

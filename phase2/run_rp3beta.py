@@ -37,6 +37,7 @@ def fit_rp3beta(
     similarity_topk: int,
     block_size: int,
 ) -> sparse.csr_matrix:
+    # Normalize the bipartite graph into user->item and item->user transition matrices.
     p_ui = normalize(train_matrix, norm="l1", axis=1, copy=True)
     p_iu = normalize(train_matrix.T.tocsr(), norm="l1", axis=1, copy=True)
 
@@ -45,6 +46,7 @@ def fit_rp3beta(
         p_iu.data = np.power(p_iu.data, alpha)
 
     item_degree = np.ravel(train_matrix.sum(axis=0)).astype(np.float64)
+    # Beta downweights very popular items so the walk does not collapse into popularity.
     degree_penalty = np.power(item_degree + 1e-12, -beta)
     degree_penalty[~np.isfinite(degree_penalty)] = 0.0
 
@@ -55,6 +57,7 @@ def fit_rp3beta(
 
     for start in range(0, num_items, block_size):
         end = min(start + block_size, num_items)
+        # Item -> user -> item random-walk scores for this item block.
         block_scores = (p_iu[start:end] @ p_ui).toarray().astype(np.float32, copy=False)
         block_scores *= degree_penalty[np.newaxis, :]
 
@@ -69,6 +72,7 @@ def fit_rp3beta(
 
             candidate_idx = np.flatnonzero(positive_mask)
             if candidate_idx.size > similarity_topk:
+                # Keep only the strongest neighbors so scoring stays sparse enough.
                 top_idx = np.argpartition(row_scores[candidate_idx], -similarity_topk)[-similarity_topk:]
                 candidate_idx = candidate_idx[top_idx]
 

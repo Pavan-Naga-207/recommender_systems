@@ -1,0 +1,30 @@
+{
+  "input": {
+    "columns": [
+      "user_id",
+      "item_id",
+      "timestamp",
+      "state_label",
+      "feature_1",
+      "feature_2"
+    ]
+  },
+  "processed": {
+    "columns": [
+      "user_id",
+      "item_id",
+      "timestamp",
+      "timestamp_dt"
+    ]
+  },
+  "outputs": [
+    "train.csv",
+    "val.csv",
+    "test.csv",
+    "interaction_matrix.npy",
+    "user_mapping.csv",
+    "item_mapping.csv",
+    "dataset_stats.json",
+    "schema.json"
+  ]
+}

@@ -28,6 +28,7 @@ def run_baselines_for_split(eval_split: str) -> None:
         split_data.num_items,
     )
 
+    # Popularity: same global item order for everyone, with train-seen items skipped.
     item_pop = np.asarray(train_matrix.sum(axis=0)).ravel()
     popularity_ranking = np.argsort(item_pop)[::-1]
 
@@ -41,6 +42,7 @@ def run_baselines_for_split(eval_split: str) -> None:
                 break
         return recs
 
+    # UserCF: cosine-style user similarity on binary interaction rows.
     row_norms = np.sqrt(train_matrix.multiply(train_matrix).sum(axis=1)).A1
     row_norms[row_norms == 0.0] = 1.0
     train_matrix_norm = train_matrix.multiply(1.0 / row_norms[:, None]).tocsr()
@@ -52,6 +54,7 @@ def run_baselines_for_split(eval_split: str) -> None:
 
         positive = np.where(sim > 0.0)[0]
         if positive.size == 0:
+            # If a user has no useful neighbors, fall back to the simple baseline.
             return recommend_popularity(user_id, k)
 
         n_neighbors = min(CF_NEIGHBORS, positive.size)
@@ -63,6 +66,8 @@ def run_baselines_for_split(eval_split: str) -> None:
 
     max_components = min(train_matrix.shape) - 1
     svd_components = max(2, min(SVD_COMPONENTS, max_components))
+
+    # Basic latent-factor baseline from a truncated sparse SVD.
     user_left, singular_vals, item_right_t = sparse_linalg.svds(train_matrix, k=svd_components)
     order = np.argsort(singular_vals)[::-1]
     singular_vals = singular_vals[order]

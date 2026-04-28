@@ -58,6 +58,7 @@ def chunked(values: list[int], batch_size: int):
 
 
 def load_item_metadata(num_items: int) -> pd.DataFrame:
+    # Align raw app metadata with the encoded item ids produced by phase1.
     item_map = pd.read_csv(DATA_DIR / "item_mapping.csv")
     meta = pd.read_csv(APP_INFO_PATH)
     merged = item_map.merge(
@@ -76,6 +77,7 @@ def load_item_metadata(num_items: int) -> pd.DataFrame:
 def build_item_priors(num_items: int) -> dict[str, np.ndarray]:
     metadata_df = load_item_metadata(num_items)
 
+    # Log-scale count fields before standardizing; the raw counts are very skewed.
     installs = np.log1p(metadata_df["installs"].fillna(0.0).to_numpy(dtype=np.float64))
     installs = (installs - installs.mean()) / (installs.std() + 1e-12)
 
@@ -229,6 +231,7 @@ def build_char_ngram_matrix(metadata_df: pd.DataFrame, num_items: int) -> sparse
 def build_metadata_feature_matrix(metadata_df: pd.DataFrame, num_items: int, mode: str) -> sparse.csr_matrix:
     category_matrix = build_category_matrix(metadata_df, num_items)
 
+    # Modes add package-name text features on top of category when requested.
     if mode == "category":
         features = category_matrix
     elif mode == "category_word":
@@ -272,6 +275,7 @@ def build_metadata_similarity(
     if cache_path.exists():
         return load_npz(cache_path).tocsr()
 
+    # Build an item-item graph from metadata feature similarity, not interactions.
     metadata_df = load_item_metadata(num_items)
     features = build_metadata_feature_matrix(metadata_df, num_items, mode)
 
@@ -330,6 +334,7 @@ def select_top_k_reranked(
 
     candidate_eff = min(candidate_size, candidate_count)
     candidate_idx = np.argpartition(scores, -candidate_eff)[-candidate_eff:]
+    # Metadata only reorders the base model's candidate pool in rerank mode.
     rerank_scores = scores[candidate_idx] + alpha * metadata_scores[candidate_idx]
     order = np.argsort(rerank_scores)[::-1]
     return candidate_idx[order[: min(top_k, candidate_eff)]].tolist()
@@ -350,6 +355,7 @@ def build_recommendation_cache(
 
     for batch_users in chunked(eligible_users, score_batch_size):
         base_batch_scores = base_score_fn(batch_users)
+        # Metadata scores come from the user's train history propagated over metadata similarity.
         metadata_batch_scores = {
             mode: train_matrix[batch_users].dot(similarity).toarray()
             for mode, similarity in metadata_similarity_by_mode.items()

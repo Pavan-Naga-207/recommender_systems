@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+EASE-Binary-3000,0.0416622621564482,0.06630547123815717,0.08357417492513425,7568,val

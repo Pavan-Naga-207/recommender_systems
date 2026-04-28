@@ -29,6 +29,7 @@ def chunked(values: list[int], batch_size: int):
 
 
 def fit_ease(interaction_matrix, lambda_reg: float) -> np.ndarray:
+    # Keep the same EASE core; this script only adds a small metadata prior.
     gram = (interaction_matrix.T @ interaction_matrix).toarray().astype(np.float64, copy=False)
     diag_idx = np.diag_indices_from(gram)
     gram[diag_idx] += lambda_reg
@@ -46,6 +47,7 @@ def main() -> None:
     train_matrix = build_train_matrix(val_data.train_df, num_users, num_items)
 
     ease_coeffs = fit_ease(train_matrix, LAMBDA_REG)
+    # Priors are item-level metadata signals aligned to encoded item ids.
     priors = build_item_priors(num_items)
     item_prior = priors[PRIOR_NAME]
 
@@ -54,6 +56,7 @@ def main() -> None:
         for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
             base_scores = train_matrix[batch_users].dot(ease_coeffs)
             for row_idx, user_id in enumerate(batch_users):
+                # Small prior nudge on top of the base EASE score.
                 combined_scores = base_scores[row_idx] + PRIOR_ALPHA * item_prior
                 rec_cache[user_id] = top_k_from_scores(
                     combined_scores,
