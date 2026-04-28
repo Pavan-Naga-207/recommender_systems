@@ -28,6 +28,7 @@ def chunked(values: list[int], batch_size: int):
 
 
 def bm25_weight_rows(matrix: sparse.csr_matrix, k1: float = 100.0, b: float = 0.8) -> sparse.csr_matrix:
+    # BM25 reduces the impact of very common users/items before neighbor search.
     coo = matrix.tocoo(copy=True)
     n_rows = float(coo.shape[0])
     idf = np.log(n_rows) - np.log1p(np.bincount(coo.col, minlength=coo.shape[1]))
@@ -42,6 +43,7 @@ def fit_itemknn_bm25(train_matrix: sparse.csr_matrix, neighbors: int) -> sparse.
     item_user = train_matrix.T.tocsr().astype(np.float32)
     weighted = bm25_weight_rows(item_user)
 
+    # Cosine neighbors over BM25-weighted item vectors.
     nn = NearestNeighbors(n_neighbors=neighbors + 1, metric="cosine", algorithm="brute")
     nn.fit(weighted)
     distances, indices = nn.kneighbors(weighted, return_distance=True)
@@ -78,6 +80,7 @@ def run_itemknn_for_split(eval_split: str) -> None:
 
     rec_cache: dict[int, list[int]] = {}
     for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
+        # Score candidate items from the user's seen items and the item-item similarity graph.
         batch_scores = train_matrix[batch_users].dot(similarity).toarray()
         for row_idx, user_id in enumerate(batch_users):
             rec_cache[user_id] = top_k_from_scores(

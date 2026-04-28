@@ -25,6 +25,7 @@ class LoadedSplitData:
 
 
 def _group_items_by_user(df: pd.DataFrame) -> dict[int, set[int]]:
+    # Sets collapse repeated user-item rows for evaluation and masking.
     return {
         int(user_id): set(items.astype(int))
         for user_id, items in df.groupby("user_id")["item_id"]
@@ -46,6 +47,8 @@ def load_split_data(data_dir: str | Path = DEFAULT_DATA_DIR, eval_split: str = "
 
     train_user_items = _group_items_by_user(train_df)
     eval_user_items = _group_items_by_user(eval_df)
+
+    # We only evaluate users with both history and future interactions.
     eligible_users = sorted(set(eval_user_items) & set(train_user_items))
     if not eligible_users:
         raise ValueError("No users overlap between train split and evaluation split.")
@@ -64,6 +67,7 @@ def load_split_data(data_dir: str | Path = DEFAULT_DATA_DIR, eval_split: str = "
 
 
 def build_train_matrix(train_df: pd.DataFrame, num_users: int, num_items: int) -> sparse.csr_matrix:
+    # Implicit feedback: every observed train interaction is a 1.
     train_rows = train_df["user_id"].to_numpy(dtype=np.int64)
     train_cols = train_df["item_id"].to_numpy(dtype=np.int64)
     train_data = np.ones(len(train_df), dtype=np.float32)
@@ -80,6 +84,7 @@ def top_k_from_scores(scores: np.ndarray, seen_items: set[int], k: int) -> list[
     scores = np.asarray(scores, dtype=np.float64).copy()
     if seen_items:
         seen_idx = np.fromiter(seen_items, dtype=np.int64)
+        # Do not recommend apps the user already saw in the train split.
         scores[seen_idx] = -np.inf
 
     finite_mask = np.isfinite(scores)
@@ -121,6 +126,7 @@ def evaluate_topk(
         precision = hit_count / float(k)
         recall = hit_count / float(len(truth))
 
+        # NDCG gives more credit when relevant apps appear earlier in the list.
         dcg = 0.0
         for rank, rel in enumerate(hits, start=1):
             if rel:

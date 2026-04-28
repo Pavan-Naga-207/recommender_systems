@@ -1,0 +1,2 @@
+model,metadata_mode,fusion,alpha,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+RP3betaMeta-category_char-rerank-a0.1,category_char,rerank,0.1,0.04340395480225989,0.06465018097774743,0.084975374779779,7080,test

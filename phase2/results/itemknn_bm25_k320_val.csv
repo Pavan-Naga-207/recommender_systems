@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+ItemKNN-BM25-K320,0.040169133192389,0.06366344699147396,0.08037855855701996,7568,val

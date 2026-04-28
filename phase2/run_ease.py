@@ -26,6 +26,7 @@ def chunked(values: list[int], batch_size: int):
 
 
 def fit_ease(interaction_matrix, lambda_reg: float) -> np.ndarray:
+    # EASE learns a dense item-item weight matrix from the item co-occurrence Gram matrix.
     gram = (interaction_matrix.T @ interaction_matrix).toarray().astype(np.float64, copy=False)
     diag_idx = np.diag_indices_from(gram)
     gram[diag_idx] += lambda_reg
@@ -46,6 +47,7 @@ def run_ease_for_split(eval_split: str) -> None:
 
     rec_cache: dict[int, list[int]] = {}
     for batch_users in chunked(split_data.eligible_users, SCORE_BATCH_SIZE):
+        # User scores are just the user's train history multiplied by the EASE item weights.
         batch_scores = train_matrix[batch_users].dot(coeffs)
         for row_idx, user_id in enumerate(batch_users):
             rec_cache[user_id] = top_k_from_scores(

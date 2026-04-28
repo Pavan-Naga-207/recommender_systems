@@ -1,0 +1,2 @@
+model,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+ItemKNN-BM25-K320,0.042994350282485876,0.06350535771287563,0.08324402489169455,7080,test

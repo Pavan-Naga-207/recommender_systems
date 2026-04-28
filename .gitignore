@@ -1,8 +1,8 @@
-phase1/processed/
-phase2/results/
-
 # Python
 __pycache__/
 *.pyc
 .venv/
 .venv_hybrid/
+
+# macOS
+.DS_Store

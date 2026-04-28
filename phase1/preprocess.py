@@ -23,6 +23,8 @@ if TRAIN_RATIO + VAL_RATIO >= 1.0:
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# The raw Myket file has extra zero-valued fields, but the shared pipeline
+# only needs the interaction triplet for top-K recommendation.
 col_names = [
     "user_id",
     "item_id",
@@ -48,6 +50,8 @@ df["item_id"] = df["item_id"].astype(str)
 df = df.sort_values(by=["user_id", "timestamp"]).reset_index(drop=True)
 
 
+# Filtering is repeated because removing low-count users can also make some
+# items fall below the item threshold, and vice versa.
 while True:
     before = len(df)
 
@@ -71,6 +75,8 @@ df["timestamp_dt"] = pd.to_datetime(df["timestamp"], unit="s", origin="unix", er
 df = df.sort_values("timestamp").reset_index(drop=True)
 
 
+# Global temporal split: train on earlier interactions, validate/test on later
+# interactions. This is not a per-user leave-one-out split.
 n = len(df)
 train_end = int(TRAIN_RATIO * n)
 val_end = int((TRAIN_RATIO + VAL_RATIO) * n)
@@ -84,6 +90,7 @@ if train_df.empty or val_df.empty or test_df.empty:
 num_users = int(len(user_unique))
 num_items = int(len(item_unique))
 
+# Train-only binary matrix used by the baselines and all phase 2 variants.
 interaction_matrix = np.zeros((num_users, num_items), dtype=np.uint8)
 train_rows = train_df["user_id"].to_numpy(dtype=np.int64)
 train_cols = train_df["item_id"].to_numpy(dtype=np.int64)

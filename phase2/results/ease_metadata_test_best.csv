@@ -1,0 +1,2 @@
+model,metadata_mode,fusion,alpha,precision@10,recall@10,ndcg@10,users_evaluated,eval_split
+EASEMeta-category_char-score_blend-a0.5,category_char,score_blend,0.5,0.044830508474576265,0.06546715909320529,0.08622694881285616,7080,test

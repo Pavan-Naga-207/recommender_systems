@@ -44,6 +44,7 @@ def fit_rp3beta(
     similarity_topk: int,
     block_size: int,
 ) -> sparse.csr_matrix:
+    # Same RP3beta base as run_rp3beta.py; metadata is fused during ranking.
     p_ui = normalize(train_matrix, norm="l1", axis=1, copy=True)
     p_iu = normalize(train_matrix.T.tocsr(), norm="l1", axis=1, copy=True)
 
@@ -112,11 +113,13 @@ def main() -> None:
     )
 
     print("Building metadata similarities")
+    # Each mode builds a different item-item graph from app metadata.
     metadata_similarity_by_mode = {
         mode: build_metadata_similarity(num_items, mode, METADATA_SIM_TOPK, METADATA_BATCH_SIZE)
         for mode in METADATA_MODES
     }
 
+    # Try metadata modes, fusion styles, and metadata weights on validation.
     val_configs = [
         HybridConfig(metadata_mode=mode, fusion=fusion, alpha=alpha)
         for mode in METADATA_MODES
@@ -125,6 +128,7 @@ def main() -> None:
     ]
 
     def base_score_fn(batch_users: list[int]) -> np.ndarray:
+        # Base score is plain RP3beta; build_recommendation_cache adds metadata.
         return train_matrix[batch_users].dot(rp3beta_similarity).toarray()
 
     print("Running validation sweep")
@@ -160,6 +164,7 @@ def main() -> None:
     )
     print(f"\nBest validation config: {best_config}")
 
+    # Evaluate only the validation winner on test to avoid cherry-picking.
     test_rec_cache = build_recommendation_cache(
         train_matrix=train_matrix,
         eligible_users=test_data.eligible_users,

@@ -34,6 +34,7 @@ ALPHAS = (0.1, 0.25, 0.5, 1.0, 2.0)
 
 
 def fit_ease(interaction_matrix, lambda_reg: float) -> np.ndarray:
+    # Same EASE base model as run_ease.py; metadata is added after scoring.
     gram = (interaction_matrix.T @ interaction_matrix).toarray().astype(np.float64, copy=False)
     diag_idx = np.diag_indices_from(gram)
     gram[diag_idx] += lambda_reg
@@ -54,11 +55,13 @@ def main() -> None:
     ease_coeffs = fit_ease(train_matrix, LAMBDA_REG)
 
     print("Building metadata similarities")
+    # Build one item-item metadata graph for each feature mode.
     metadata_similarity_by_mode = {
         mode: build_metadata_similarity(num_items, mode, METADATA_SIM_TOPK, METADATA_BATCH_SIZE)
         for mode in METADATA_MODES
     }
 
+    # Sweep feature mode, fusion style, and metadata weight on validation.
     val_configs = [
         HybridConfig(metadata_mode=mode, fusion=fusion, alpha=alpha)
         for mode in METADATA_MODES
@@ -102,6 +105,7 @@ def main() -> None:
     )
     print(f"\nBest validation config: {best_config}")
 
+    # Only the validation winner is carried forward to test.
     test_rec_cache = build_recommendation_cache(
         train_matrix=train_matrix,
         eligible_users=test_data.eligible_users,
